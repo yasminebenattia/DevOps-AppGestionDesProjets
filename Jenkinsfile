@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -9,6 +8,11 @@ pipeline {
 
     environment {
         MAVEN_OPTS = '-Xmx1024m'
+    }
+
+    triggers {
+        githubPush()              // déclenché par le webhook GitHub
+        // pollSCM('H/2 * * * *') // solution de secours si le webhook n'est pas joignable
     }
 
     stages {
@@ -33,6 +37,11 @@ pipeline {
                     sh 'mvn test'
                 }
             }
+            post {
+                always {
+                    junit 'backend/target/surefire-reports/*.xml'
+                }
+            }
         }
 
         stage('Package') {
@@ -41,15 +50,16 @@ pipeline {
                     sh 'mvn package -DskipTests'
                 }
             }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
+                }
+            }
         }
     }
 
     post {
-        success {
-            echo 'Pipeline terminee avec succes !'
-        }
-        failure {
-            echo 'La pipeline a echoue.'
-        }
+        success { echo 'Pipeline réussie : le livrable est dans backend/target.' }
+        failure { echo 'La pipeline a échoué.' }
     }
 }

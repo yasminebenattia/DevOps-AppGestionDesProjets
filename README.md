@@ -203,6 +203,7 @@ pipeline {
         }
     }
 }
+Test automatique du webhook GitHub vers Jenkins.
 ```
 
 ---

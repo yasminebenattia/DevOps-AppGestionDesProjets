@@ -63,18 +63,18 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                dir('backend') {
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            mvn sonar:sonar \
-                              -Dsonar.projectKey=DevOps-AppGestionDesProjets \
-                              -Dsonar.projectName=DevOps-AppGestionDesProjets
-                        '''
-                    }
-                }
+	   steps {
+		dir('backend') {
+       withSonarQubeEnv('SonarQube') {
+                sh '''
+                    mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
+                      -Dsonar.projectKey=DevOps-AppGestionDesProjets \
+                      -Dsonar.projectName=DevOps-AppGestionDesProjets
+                '''
             }
         }
+    }
+}
 
         stage('Quality Gate') {
             steps {

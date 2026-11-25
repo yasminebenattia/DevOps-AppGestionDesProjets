@@ -4,7 +4,7 @@ pipeline {
 
     tools {
         jdk 'JDK'
-        maven 'MAVEN_HOME'
+        maven 'Maven-3.9'
     }
 
     environment {
@@ -58,6 +58,28 @@ pipeline {
                 success {
                     archiveArtifacts artifacts: 'backend/target/*.jar',
                         fingerprint: true
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('backend') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            mvn sonar:sonar \
+                              -Dsonar.projectKey=DevOps-AppGestionDesProjets \
+                              -Dsonar.projectName=DevOps-AppGestionDesProjets
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -118,7 +140,7 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline réussie : Backend et Frontend construits, publiés sur Docker Hub et déployés avec Docker Compose.'
+            echo 'Pipeline réussie : analyse SonarQube validée, images Docker publiées et application déployée.'
         }
 
         failure {

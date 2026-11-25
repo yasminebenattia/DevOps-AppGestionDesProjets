@@ -9,7 +9,9 @@ pipeline {
 
     environment {
         MAVEN_OPTS = '-Xmx1024m'
-        DOCKER_IMAGE = 'yasmine12346/backend-app'
+        BACKEND_IMAGE = 'yasmine12346/backend-app'
+        FRONTEND_IMAGE = 'yasmine12346/frontend-app'
+        COMPOSE_PROJECT_NAME = 'devops-appgestiondesprojets'
     }
 
     triggers {
@@ -17,6 +19,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout GitHub') {
             steps {
                 git branch: 'main',
@@ -45,7 +48,7 @@ pipeline {
             }
         }
 
-        stage('Package') {
+        stage('Package Backend') {
             steps {
                 dir('backend') {
                     sh 'mvn package -DskipTests'
@@ -62,10 +65,17 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    env.IMAGE_TAG = "${env.BUILD_NUMBER}"
+                    env.IMAGE_TAG = env.BUILD_NUMBER
                 }
+
                 sh '''
-                    docker build -t $DOCKER_IMAGE:$IMAGE_TAG backend
+                    docker build \
+                        -t $BACKEND_IMAGE:$IMAGE_TAG \
+                        backend
+
+                    docker build \
+                        -t $FRONTEND_IMAGE:$IMAGE_TAG \
+                        frontend
                 '''
             }
         }
@@ -78,22 +88,41 @@ pipeline {
                     passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
                     sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $DOCKER_IMAGE:$IMAGE_TAG
-                        docker logout
+                        set -e
+
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USER" \
+                            --password-stdin
+
+                        trap 'docker logout >/dev/null 2>&1 || true' EXIT
+
+                        docker push $BACKEND_IMAGE:$IMAGE_TAG
+                        docker push $FRONTEND_IMAGE:$IMAGE_TAG
                     '''
                 }
+            }
+        }
+
+        stage('Deploy with Docker Compose') {
+            steps {
+                sh '''
+                    export IMAGE_TAG=$BUILD_NUMBER
+
+                    docker compose \
+                        -p $COMPOSE_PROJECT_NAME \
+                        up -d --force-recreate
+                '''
             }
         }
     }
 
     post {
         success {
-            echo 'Pipeline réussie : backend compilé et image publiée sur Docker Hub.'
+            echo 'Pipeline réussie : Backend et Frontend construits, publiés sur Docker Hub et déployés avec Docker Compose.'
         }
+
         failure {
-            echo 'La pipeline a échoué.'
+            echo 'La pipeline a échoué. Vérifier les logs des étapes.'
         }
     }
 }
-
